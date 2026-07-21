@@ -14,3 +14,6 @@ HANDWRITING_BACKEND = os.environ.get("HANDWRITING_BACKEND", "builtin")
 
 MAX_UPLOAD_MB = 25
 ALLOWED_IMAGE_EXTENSIONS = {"png", "jpg", "jpeg", "bmp", "webp"}
+
+# Preprocessing Debug Flag
+DEBUG_PREPROCESSING = True

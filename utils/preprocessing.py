@@ -13,7 +13,13 @@ in a notebook independent of Flask.
 
 import cv2
 import numpy as np
+import os
 from PIL import Image
+
+try:
+    from config import DEBUG_PREPROCESSING
+except ImportError:
+    DEBUG_PREPROCESSING = False
 
 
 def load_image_bgr(path: str) -> np.ndarray:
@@ -40,12 +46,30 @@ def denoise(gray: np.ndarray) -> np.ndarray:
     return cv2.bilateralFilter(gray, d=7, sigmaColor=50, sigmaSpace=50)
 
 
+def flatten_illumination(gray_img: np.ndarray) -> np.ndarray:
+    """Estimates lighting/shadow gradient and cancels it out to flatten illumination."""
+    bg = cv2.medianBlur(gray_img, 51)
+    flattened = cv2.divide(gray_img, bg, scale=255)
+    return flattened
+
+
 def binarize(gray: np.ndarray) -> np.ndarray:
-    """Otsu threshold -> ink pixels become 255 (white) on a black background,
-    which is the convention the rest of the pipeline expects."""
-    blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
-                                   cv2.THRESH_BINARY_INV, 51, 25)
+    """Adaptive thresholding to handle lighting variations across the page."""
+    flattened_gray = flatten_illumination(gray)
+    
+    # Adaptive thresholding
+    thresh = cv2.adaptiveThreshold(
+        flattened_gray, 255,
+        cv2.ADAPTIVE_THRESH_GAUSSIAN_C,
+        cv2.THRESH_BINARY_INV,
+        25,   # block size
+        10    # constant subtracted
+    )
+    
+    # Old Otsu call kept as fallback/comment for comparison:
+    # blur = cv2.GaussianBlur(gray, (5, 5), 0)
+    # _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    
     # remove tiny speckle noise
     kernel = np.ones((2, 2), np.uint8)
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
@@ -54,11 +78,16 @@ def binarize(gray: np.ndarray) -> np.ndarray:
 
 def estimate_skew_angle(binary_ink: np.ndarray) -> float:
     """Estimate the dominant skew of handwriting using the minimum-area
-    bounding rectangle of all ink pixels. Returns degrees, positive = CCW."""
-    coords = np.column_stack(np.where(binary_ink > 0))
-    if coords.shape[0] < 20:
+    bounding rectangle of the largest contour (grid boundary). Returns degrees, positive = CCW."""
+    contours, _ = cv2.findContours(binary_ink, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
+    if not contours:
         return 0.0
-    rect = cv2.minAreaRect(coords)
+        
+    largest = max(contours, key=cv2.contourArea)
+    if cv2.contourArea(largest) < 100:
+        return 0.0
+        
+    rect = cv2.minAreaRect(largest)
     angle = rect[-1]
     # cv2.minAreaRect angle convention varies by OpenCV version; normalize to
     # the small range a handwritten line would realistically have.
@@ -103,6 +132,11 @@ def preprocess_sample(path: str) -> dict:
     gray = to_grayscale(bgr)
     gray = denoise(gray)
     binary = binarize(gray)
+    
+    if DEBUG_PREPROCESSING:
+        os.makedirs("output", exist_ok=True)
+        cv2.imwrite("output/debug_binary.png", binary)
+        
     angle = estimate_skew_angle(binary)
     binary = deskew(binary, angle)
     binary = crop_to_content(binary)
