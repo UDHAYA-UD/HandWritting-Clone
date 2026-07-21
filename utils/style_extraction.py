@@ -109,6 +109,33 @@ def _letter_spacing(stats):
 
 
 
+def _stroke_slant_deg(binary_ink: np.ndarray) -> float:
+    """Estimate true stroke slant angle (forward/backward cursive lean) in degrees using image gradients."""
+    gx = cv2.Sobel(binary_ink, cv2.CV_32F, 1, 0, ksize=3)
+    gy = cv2.Sobel(binary_ink, cv2.CV_32F, 0, 1, ksize=3)
+
+    mag = np.hypot(gx, gy)
+    mask = (mag > 40) & (binary_ink > 0)
+    if not np.any(mask):
+        return 0.0
+
+    gy_valid = gy[mask]
+    gx_valid = gx[mask]
+
+    non_zero = np.abs(gy_valid) > 1e-3
+    if not np.any(non_zero):
+        return 0.0
+
+    angles_rad = np.arctan(-gx_valid[non_zero] / gy_valid[non_zero])
+    angles_deg = np.degrees(angles_rad)
+
+    valid_slants = angles_deg[(angles_deg >= -40) & (angles_deg <= 40)]
+    if valid_slants.size < 10:
+        return 0.0
+
+    return float(np.median(valid_slants))
+
+
 def _roughness(binary_ink: np.ndarray):
     """Ratio of contour perimeter to convex-hull perimeter, averaged over
     components. Higher = jagged / fast handwriting, lower = smooth print."""
@@ -133,8 +160,6 @@ def extract_patches(binary_ink: np.ndarray, stats, patch_size=64, max_patches=24
     the PyTorch style autoencoder. Returns an (N, patch_size, patch_size)
     float32 array normalized to [0, 1]."""
     patches = []
-    # largest components first - these are more likely to be full letters
-    # rather than punctuation / noise specks
     ordered = stats[np.argsort(-stats[:, 4])]  # sort by area desc
     for s in ordered[:max_patches]:
         x, y, w, h, _area = s
@@ -153,8 +178,10 @@ def analyze_sample(binary_ink: np.ndarray) -> dict:
     n_components, _labels, stats, centroids = _connected_components(binary_ink)
     stroke_w, stroke_w_var = _stroke_width_stats(binary_ink)
     ink_density = float(np.count_nonzero(binary_ink)) / float(binary_ink.size)
+    slant_deg = _stroke_slant_deg(binary_ink)
 
     metrics = {
+        "slant_deg": slant_deg,
         "stroke_width_px": stroke_w,
         "stroke_width_var": stroke_w_var,
         "baseline_jitter": _baseline_jitter(stats, centroids, binary_ink.shape[0]) if n_components else 2.0,
@@ -170,11 +197,21 @@ def analyze_sample(binary_ink: np.ndarray) -> dict:
 
 def aggregate_style_profile(per_sample_metrics: list) -> dict:
     """Average metrics across every uploaded sample into one style profile."""
-    keys = ["stroke_width_px", "stroke_width_var", "baseline_jitter",
+    keys = ["slant_deg", "stroke_width_px", "stroke_width_var", "baseline_jitter",
             "letter_spacing", "ink_density", "roughness"]
     profile = {}
     for k in keys:
         vals = [m[k] for m in per_sample_metrics]
         profile[k] = float(np.mean(vals))
     profile["n_samples"] = len(per_sample_metrics)
+
+    # Recommend base handwriting font matching the user's slant and flow characteristics
+    if abs(profile["slant_deg"]) > 4.0 or profile["roughness"] > 0.35:
+        profile["recommended_font"] = "flowing"
+    elif profile["roughness"] > 0.2:
+        profile["recommended_font"] = "quick"
+    else:
+        profile["recommended_font"] = "neat"
+
     return profile
+

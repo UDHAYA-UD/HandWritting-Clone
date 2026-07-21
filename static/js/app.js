@@ -109,9 +109,13 @@ $("#runExtract").addEventListener("click", async () => {
 
     state.styleProfile = data.style_profile;
     state.latentModifiers = data.latent_modifiers;
+    if (data.style_profile.recommended_font) {
+      $("#fontSelect").value = data.style_profile.recommended_font;
+    }
     renderStyleMetrics(data.style_profile, data.latent_modifiers);
     $("#toStep3").disabled = false;
     toast("Style profile extracted.");
+
   } catch (err) {
     body.innerHTML = `<button class="btn primary" id="runExtractRetry">Try again</button>`;
     $("#runExtractRetry")?.addEventListener("click", () => $("#runExtract").click());

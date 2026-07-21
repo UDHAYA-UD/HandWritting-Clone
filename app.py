@@ -150,7 +150,7 @@ def api_extract_style():
         skew_angles.append(s["skew_angle"])
 
     style_profile = aggregate_style_profile(per_sample_metrics)
-    style_profile["slant_deg"] = float(np.mean(skew_angles))
+    style_profile["skew_angle_deg"] = float(np.mean(skew_angles))
 
     patch_stack = np.concatenate(all_patches, axis=0)
     latent = train_style_encoder(patch_stack)
