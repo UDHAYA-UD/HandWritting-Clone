@@ -70,6 +70,7 @@ def render_page(
     font_key: str = "neat",
     page_size: str = "a4",
     base_font_size: int = 42,
+    align: str = "left",
     ink_color: tuple = (30, 30, 60),
     show_ruled_lines: bool = True,
     seed: int = 42,
@@ -117,14 +118,45 @@ def render_page(
             if os.path.exists(path):
                 char_images[ch] = Image.open(path).convert("RGBA")
 
+    # Pre-calculate widths for alignment
+    def get_char_advance(ch):
+        if ch == " ":
+            return base_font_size * 0.35 * latent_modifiers["flow_mod"]
+        if char_images and ch in char_images:
+            orig_img = char_images[ch]
+            scale = (base_font_size * 1.5) / float(max(orig_img.height, 1))
+            gw = max(2, int(orig_img.width * scale))
+            return gw + letter_spacing_extra * latent_modifiers["flow_mod"]
+        else:
+            bbox = draw.textbbox((0, 0), ch, font=font)
+            gw = bbox[2] - bbox[0]
+            if gw <= 0: gw = int(base_font_size * 0.4)
+            return gw + letter_spacing_extra * latent_modifiers["flow_mod"]
+
     cursor_y = margin_y
     for line in lines:
         if cursor_y + line_height > H - margin_y:
             break  # single-page render; caller can paginate for longer text
-        cursor_x = margin_x
+            
+        line_margin_variance = rng.uniform(-15, 25)
+        
+        # Calculate alignment offset
+        if align in ["center", "right"]:
+            line_width = sum(get_char_advance(ch) for ch in line)
+            max_width = W - 2 * margin_x
+            if align == "center":
+                cursor_x = margin_x + max(0, (max_width - line_width) / 2) + rng.uniform(-10, 10)
+            elif align == "right":
+                cursor_x = W - margin_x - line_width - rng.uniform(0, 15)
+        else:
+            # left alignment with human variance
+            cursor_x = margin_x + line_margin_variance
+        
         for ch in line:
             if ch == " ":
-                cursor_x += base_font_size * 0.35 * latent_modifiers["flow_mod"]
+                # Human word spacing varies slightly
+                space_width = base_font_size * rng.uniform(0.3, 0.45)
+                cursor_x += space_width * latent_modifiers["flow_mod"]
                 continue
 
             jitter_y = rng.uniform(-1, 1) * baseline_jitter
@@ -137,9 +169,9 @@ def render_page(
             if char_images and ch in char_images:
                 # EXACT TEMPLATE PATH
                 orig_img = char_images[ch]
-                # Scale it down so it roughly fits the base_font_size height
-                # Assuming the user wrote the character taking up most of a 150px box
-                scale = (base_font_size * 0.8) / float(max(orig_img.height, 1))
+                # Scale using a fixed factor so all characters retain their relative sizes.
+                # Assuming the fixed height image corresponds to ~2x the base font size.
+                scale = (base_font_size * 1.5) / float(max(orig_img.height, 1))
                 new_w = max(2, int(orig_img.width * scale))
                 new_h = max(2, int(orig_img.height * scale))
                 
@@ -158,8 +190,8 @@ def render_page(
                 glyph_img.paste(scaled, (pad, pad))
                 
                 gw, gh = new_w, new_h
-                # Baseline offset is roughly at the bottom for image crops
-                bbox_y_offset = gh
+                # Because we preserved the full cell height, the baseline is roughly at 70% of the image height.
+                bbox_y_offset = int(gh * 0.70)
             else:
                 # FALLBACK PROCEDURAL FONT PATH
                 glyph_font = _load_font(font_key, glyph_size) if glyph_size != base_font_size else font

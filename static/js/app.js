@@ -173,6 +173,7 @@ $("#runGenerate").addEventListener("click", async () => {
     font: $("#fontSelect").value,
     page_size: $("#pageSizeSelect").value,
     font_size: Number(fontSizeRange.value),
+    align: $("#alignmentSelect").value,
     ink_color: hexToRgb($("#inkColor").value),
     ruled_lines: $("#ruledLines").checked,
   };

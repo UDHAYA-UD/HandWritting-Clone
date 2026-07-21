@@ -126,11 +126,13 @@ def api_upload():
 
 @app.route("/api/template/download")
 def download_template():
+    from flask import send_file
     # generate the template image and send it to user
     template_path = os.path.join(OUTPUT_DIR, "handwriting_template.png")
     if not os.path.exists(template_path):
+        from utils.font_generator import generate_template
         generate_template(template_path)
-    return send_from_directory(OUTPUT_DIR, "handwriting_template.png", as_attachment=True)
+    return send_file(template_path, as_attachment=True, download_name="handwriting_template.png")
 
 
 @app.route("/api/template/upload", methods=["POST"])
@@ -218,16 +220,18 @@ def api_generate():
     font_key = data.get("font", "neat")
     page_size = data.get("page_size", "a4")
     font_size = int(data.get("font_size", 42))
+    align = data.get("align", "left")
     ink_color = tuple(data.get("ink_color", [30, 30, 60]))
     ruled_lines = bool(data.get("ruled_lines", True))
 
     pages = render_multi_page(
-        text,
-        state["style_profile"],
-        state.get("latent_mods"),
+        text=text,
+        style_profile=state["style_profile"],
+        latent_modifiers=state.get("latent_mods"),
         font_key=font_key,
         page_size=page_size,
         base_font_size=font_size,
+        align=align,
         ink_color=ink_color,
         show_ruled_lines=ruled_lines,
         char_paths=state.get("char_paths")
@@ -267,9 +271,12 @@ def serve_output_preview(sid, filename):
 
 @app.route("/api/download/<sid>/<path:filename>")
 def download_output(sid, filename):
-    return send_from_directory(os.path.join(OUTPUT_DIR, sid), filename, as_attachment=True)
-
+    from flask import send_file, abort
+    file_path = os.path.join(OUTPUT_DIR, sid, filename)
+    if not os.path.exists(file_path):
+        abort(404)
+    return send_file(file_path, as_attachment=True, download_name=filename)
 
 if __name__ == "__main__":
-    app.run(debug=True, use_reloader=False, host="127.0.0.1", port=5000)
+    app.run(debug=True, use_reloader=False, host="127.0.0.1", port=5002)
 

@@ -44,7 +44,8 @@ def binarize(gray: np.ndarray) -> np.ndarray:
     """Otsu threshold -> ink pixels become 255 (white) on a black background,
     which is the convention the rest of the pipeline expects."""
     blur = cv2.GaussianBlur(gray, (5, 5), 0)
-    _, thresh = cv2.threshold(blur, 0, 255, cv2.THRESH_BINARY_INV + cv2.THRESH_OTSU)
+    thresh = cv2.adaptiveThreshold(blur, 255, cv2.ADAPTIVE_THRESH_GAUSSIAN_C, 
+                                   cv2.THRESH_BINARY_INV, 51, 25)
     # remove tiny speckle noise
     kernel = np.ones((2, 2), np.uint8)
     thresh = cv2.morphologyEx(thresh, cv2.MORPH_OPEN, kernel, iterations=1)
