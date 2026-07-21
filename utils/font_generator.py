@@ -57,9 +57,9 @@ def generate_template(output_path):
         
         # Don't draw the grid!
         
-        # Draw label in top-right
+        # Visually match the provided template:
+        # Label is at the top-left-ish, above the writing baseline
         label_text = char
-        # Estimate label size
         try:
             bbox = draw.textbbox((0,0), label_text, font=font)
             lw = bbox[2] - bbox[0]
@@ -67,13 +67,13 @@ def generate_template(output_path):
         except:
             lw, lh = 10, 15
             
-        lx = x1 - lw - 15
-        ly = y0 + 10
+        lx = x0 + 60
+        ly = y0 + 20
         draw.text((lx, ly), label_text, fill=(160, 160, 160), font=font)
         
-        # Draw dot in bottom-left of the writing area
+        # Dot is on the far-left, marking the baseline (below the label, leaving room for descending tails below it)
         dx = x0 + 20
-        dy = y1 - 20
+        dy = y0 + 80
         dot_r = 4
         draw.ellipse([dx-dot_r, dy-dot_r, dx+dot_r, dy+dot_r], fill=(0, 0, 0))
         
