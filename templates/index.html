@@ -1,0 +1,139 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Inkstead — AI Handwriting Style Generator</title>
+<link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+</head>
+<body>
+
+<div class="seal" aria-hidden="true">
+  <svg viewBox="0 0 100 100"><circle cx="50" cy="50" r="46"/><text x="50" y="60" text-anchor="middle">IS</text></svg>
+</div>
+
+<header class="masthead">
+  <h1>Inkstead</h1>
+  <p class="tagline">Learn a hand. Write in it.</p>
+</header>
+
+<main class="wizard" id="wizard">
+
+  <nav class="steps" id="stepNav">
+    <button class="step-tab active" data-step="1"><span class="num">01</span>Samples</button>
+    <button class="step-tab" data-step="2"><span class="num">02</span>Style</button>
+    <button class="step-tab" data-step="3"><span class="num">03</span>Compose</button>
+    <button class="step-tab" data-step="4"><span class="num">04</span>Export</button>
+  </nav>
+
+  <!-- STEP 1: Upload -->
+  <section class="panel active" id="panel-1">
+    <h2>Give it a hand to study</h2>
+    <p class="hint">Upload 2–5 clear photos or scans of handwriting — the same hand, the more the merrier. Plain paper, decent lighting, no need to crop perfectly.</p>
+
+    <div class="dropzone" id="dropzone">
+      <input type="file" id="fileInput" accept="image/png,image/jpeg,image/bmp,image/webp" multiple hidden>
+      <div class="dropzone-inner">
+        <div class="nib">✒</div>
+        <p><strong>Drop images here</strong> or click to browse</p>
+        <p class="muted">PNG, JPG, BMP, WEBP — up to 25MB total</p>
+      </div>
+    </div>
+
+    <div class="sample-grid" id="sampleGrid"></div>
+
+    <div class="actions">
+      <span class="status" id="uploadStatus"></span>
+      <button class="btn primary" id="toStep2" disabled>Extract style →</button>
+    </div>
+  </section>
+
+  <!-- STEP 2: Style extraction -->
+  <section class="panel" id="panel-2">
+    <h2>What your hand is made of</h2>
+    <p class="hint">Every uploaded sample is deskewed, binarized, and measured for slant, stroke weight, spacing, and jitter. A small neural network then reads texture the numbers alone miss.</p>
+
+    <div class="style-body" id="styleBody">
+      <button class="btn primary" id="runExtract">Analyze samples</button>
+    </div>
+
+    <div class="actions">
+      <button class="btn ghost" data-goto="1">← Back</button>
+      <button class="btn primary" id="toStep3" disabled>Compose text →</button>
+    </div>
+  </section>
+
+  <!-- STEP 3: Compose -->
+  <section class="panel" id="panel-3">
+    <h2>What should it say?</h2>
+
+    <div class="compose-grid">
+      <textarea id="textInput" rows="10" placeholder="Type or paste the text you'd like written in this handwriting…">Dear friend,
+
+I hope this letter finds you well. There is something quietly magical about handwriting — every loop and slant carries a little of the person who made it.
+
+Warmly,
+Inkstead</textarea>
+
+      <div class="options">
+        <label>Handwriting feel
+          <select id="fontSelect">
+            <option value="neat">Neat & rounded</option>
+            <option value="flowing">Flowing & cursive</option>
+            <option value="casual">Casual & light</option>
+            <option value="quick">Quick, loose strokes</option>
+          </select>
+        </label>
+
+        <label>Page size
+          <select id="pageSizeSelect">
+            <option value="a4">A4</option>
+            <option value="letter">US Letter</option>
+          </select>
+        </label>
+
+        <label>Letter size
+          <input type="range" id="fontSizeRange" min="28" max="60" value="42">
+          <span id="fontSizeLabel" class="muted">42px</span>
+        </label>
+
+        <label>Ink color
+          <input type="color" id="inkColor" value="#1e1e3c">
+        </label>
+
+        <label class="checkbox">
+          <input type="checkbox" id="ruledLines" checked>
+          Ruled lines
+        </label>
+      </div>
+    </div>
+
+    <div class="actions">
+      <button class="btn ghost" data-goto="2">← Back</button>
+      <button class="btn primary" id="runGenerate">Generate handwriting →</button>
+    </div>
+  </section>
+
+  <!-- STEP 4: Preview & Export -->
+  <section class="panel" id="panel-4">
+    <h2>Fresh off the page</h2>
+    <div class="page-preview" id="pagePreview"></div>
+
+    <div class="actions">
+      <button class="btn ghost" data-goto="3">← Compose again</button>
+      <a class="btn primary" id="downloadPng" download>Download PNG</a>
+      <a class="btn primary" id="downloadPdf" download>Download PDF</a>
+    </div>
+  </section>
+
+</main>
+
+<footer>
+  <p>Inkstead runs entirely on your machine — samples and pages never leave localhost.</p>
+</footer>
+
+<div class="toast" id="toast"></div>
+
+<script src="{{ url_for('static', filename='js/app.js') }}"></script>
+</body>
+</html>

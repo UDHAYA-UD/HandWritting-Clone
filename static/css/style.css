@@ -1,0 +1,314 @@
+/* ---------------------------------------------------------------------
+   Inkstead — fountain-pen-and-parchment design system
+   Palette: aged parchment paper, deep indigo ink, aged-gold wax-seal accent.
+   Display type: Space Grotesk (structural, modern — contrasts the organic
+   handwriting on the page itself). Accent flourishes use the sample
+   handwriting fonts so the UI itself hints at the product.
+--------------------------------------------------------------------- */
+
+@font-face {
+  font-family: "Space Grotesk";
+  src: url("/static/fonts/SpaceGrotesk-Regular.ttf") format("truetype");
+  font-weight: 400 700;
+}
+@font-face {
+  font-family: "Caveat";
+  src: url("/static/fonts/Caveat-Regular.ttf") format("truetype");
+}
+
+:root {
+  --paper: #EDE6D6;
+  --paper-warm: #E4DBC6;
+  --paper-line: #cfc4a4;
+  --ink: #23305B;
+  --ink-deep: #171F3D;
+  --gold: #B8863B;
+  --gold-soft: #d9b06a;
+  --text: #211D18;
+  --muted: #746A57;
+  --error: #9C3B3B;
+  --radius: 3px;
+}
+
+* { box-sizing: border-box; }
+
+body {
+  margin: 0;
+  background: var(--paper);
+  background-image:
+    radial-gradient(rgba(0,0,0,0.03) 1px, transparent 1px);
+  background-size: 3px 3px;
+  color: var(--text);
+  font-family: "Space Grotesk", system-ui, sans-serif;
+  min-height: 100vh;
+  display: flex;
+  flex-direction: column;
+}
+
+/* ---- masthead ---- */
+.masthead {
+  text-align: center;
+  padding: 2.6rem 1rem 1rem;
+  position: relative;
+}
+.masthead h1 {
+  font-size: 2.6rem;
+  letter-spacing: 0.02em;
+  margin: 0;
+  color: var(--ink-deep);
+  font-weight: 700;
+}
+.masthead .tagline {
+  font-family: "Caveat", cursive;
+  font-size: 1.5rem;
+  color: var(--gold);
+  margin: 0.1rem 0 0;
+}
+
+.seal {
+  position: absolute;
+  top: 18px;
+  left: 24px;
+  width: 54px;
+  height: 54px;
+  opacity: 0.9;
+}
+.seal svg { width: 100%; height: 100%; }
+.seal circle {
+  fill: var(--gold);
+  stroke: var(--gold-soft);
+  stroke-width: 2;
+}
+.seal text {
+  font-family: "Caveat", cursive;
+  font-size: 30px;
+  fill: var(--paper);
+}
+
+/* ---- wizard shell ---- */
+.wizard {
+  max-width: 860px;
+  width: 100%;
+  margin: 0 auto;
+  padding: 0 1.25rem 3rem;
+  flex: 1;
+}
+
+.steps {
+  display: flex;
+  gap: 0.4rem;
+  margin-bottom: 1.5rem;
+  border-bottom: 1px solid var(--paper-line);
+}
+.step-tab {
+  flex: 1;
+  background: none;
+  border: none;
+  padding: 0.9rem 0.5rem;
+  font-family: inherit;
+  font-size: 0.9rem;
+  color: var(--muted);
+  cursor: pointer;
+  border-bottom: 3px solid transparent;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.15rem;
+  transition: color 0.2s, border-color 0.2s;
+}
+.step-tab .num {
+  font-family: "Caveat", cursive;
+  font-size: 1.3rem;
+  color: var(--gold);
+}
+.step-tab.active {
+  color: var(--ink-deep);
+  border-bottom-color: var(--ink);
+  font-weight: 600;
+}
+.step-tab:disabled { opacity: 0.4; cursor: not-allowed; }
+
+.panel { display: none; animation: fadein 0.35s ease; }
+.panel.active { display: block; }
+@keyframes fadein { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
+
+.panel h2 {
+  font-size: 1.5rem;
+  margin: 0 0 0.3rem;
+  color: var(--ink-deep);
+}
+.hint { color: var(--muted); max-width: 60ch; line-height: 1.5; margin-bottom: 1.2rem; }
+.muted { color: var(--muted); font-size: 0.85rem; }
+
+/* ---- dropzone ---- */
+.dropzone {
+  border: 2px dashed var(--paper-line);
+  border-radius: var(--radius);
+  background: rgba(255,255,255,0.35);
+  padding: 2.5rem 1rem;
+  text-align: center;
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+}
+.dropzone.drag-over { border-color: var(--gold); background: rgba(184,134,59,0.08); }
+.dropzone .nib { font-size: 2.2rem; color: var(--ink); margin-bottom: 0.4rem; }
+.dropzone p { margin: 0.2rem 0; }
+
+.sample-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(110px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1.2rem;
+}
+.sample-card {
+  background: #fff;
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  overflow: hidden;
+  position: relative;
+}
+.sample-card img { width: 100%; height: 90px; object-fit: cover; display: block; background: #fafafa; }
+.sample-card .tag {
+  font-size: 0.65rem;
+  padding: 0.15rem 0.4rem;
+  color: var(--muted);
+  text-align: center;
+}
+
+/* ---- actions row ---- */
+.actions {
+  display: flex;
+  align-items: center;
+  gap: 0.75rem;
+  margin-top: 1.75rem;
+  flex-wrap: wrap;
+}
+.status { color: var(--muted); font-size: 0.9rem; margin-right: auto; }
+
+.btn {
+  font-family: inherit;
+  font-size: 0.95rem;
+  padding: 0.65rem 1.3rem;
+  border-radius: var(--radius);
+  border: 1px solid transparent;
+  cursor: pointer;
+  text-decoration: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  transition: transform 0.12s, background 0.2s, opacity 0.2s;
+}
+.btn.primary { background: var(--ink); color: var(--paper); }
+.btn.primary:hover:not(:disabled) { background: var(--ink-deep); transform: translateY(-1px); }
+.btn.primary:disabled { opacity: 0.4; cursor: not-allowed; transform: none; }
+.btn.ghost { background: transparent; border-color: var(--paper-line); color: var(--text); }
+.btn.ghost:hover { border-color: var(--ink); }
+
+/* ---- style extraction panel ---- */
+.style-body { min-height: 120px; }
+.metric-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+  gap: 0.9rem;
+  margin-top: 1rem;
+}
+.metric-card {
+  background: rgba(255,255,255,0.5);
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  padding: 0.9rem;
+}
+.metric-card .label { font-size: 0.75rem; color: var(--muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.metric-card .value { font-size: 1.5rem; font-family: "Caveat", cursive; color: var(--ink-deep); }
+
+/* ---- compose panel ---- */
+.compose-grid {
+  display: grid;
+  grid-template-columns: 2fr 1fr;
+  gap: 1.5rem;
+}
+@media (max-width: 700px) { .compose-grid { grid-template-columns: 1fr; } }
+
+#textInput {
+  width: 100%;
+  font-family: "Caveat", cursive;
+  font-size: 1.4rem;
+  line-height: 1.5;
+  padding: 1rem;
+  border: 1px solid var(--paper-line);
+  border-radius: var(--radius);
+  background: repeating-linear-gradient(
+    var(--paper) 0px, var(--paper) 37px, var(--paper-line) 38px
+  );
+  color: var(--ink-deep);
+  resize: vertical;
+}
+
+.options {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+}
+.options label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.3rem;
+  font-size: 0.85rem;
+  color: var(--muted);
+}
+.options select, .options input[type=range] { font-family: inherit; }
+.options select {
+  padding: 0.4rem;
+  border-radius: var(--radius);
+  border: 1px solid var(--paper-line);
+  background: #fff;
+}
+.options input[type=color] { width: 100%; height: 34px; border: 1px solid var(--paper-line); border-radius: var(--radius); }
+.options .checkbox { flex-direction: row; align-items: center; gap: 0.5rem; }
+
+/* ---- preview / export ---- */
+.page-preview {
+  border: 1px solid var(--paper-line);
+  background: #fff;
+  box-shadow: 0 8px 24px rgba(35,48,91,0.12);
+  max-height: 640px;
+  overflow-y: auto;
+}
+.page-preview img { width: 100%; display: block; border-bottom: 1px dashed var(--paper-line); }
+
+footer {
+  text-align: center;
+  color: var(--muted);
+  font-size: 0.8rem;
+  padding: 1.5rem 1rem 2rem;
+}
+
+/* ---- toast ---- */
+.toast {
+  position: fixed;
+  bottom: 1.5rem;
+  left: 50%;
+  transform: translate(-50%, 20px);
+  background: var(--ink-deep);
+  color: var(--paper);
+  padding: 0.7rem 1.2rem;
+  border-radius: var(--radius);
+  font-size: 0.9rem;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s, transform 0.25s;
+  max-width: 90vw;
+  z-index: 50;
+}
+.toast.show { opacity: 1; transform: translate(-50%, 0); }
+.toast.error { background: var(--error); }
+
+.spinner {
+  display: inline-block;
+  width: 16px; height: 16px;
+  border: 2px solid rgba(255,255,255,0.4);
+  border-top-color: #fff;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
+}
+@keyframes spin { to { transform: rotate(360deg); } }
