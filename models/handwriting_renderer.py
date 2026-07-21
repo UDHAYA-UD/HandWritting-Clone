@@ -73,6 +73,7 @@ def render_page(
     ink_color: tuple = (30, 30, 60),
     show_ruled_lines: bool = True,
     seed: int = 42,
+    char_paths: dict = None,
 ) -> Image.Image:
     """Render one page of style-conditioned synthetic handwriting."""
     rng = random.Random(seed)
@@ -95,6 +96,8 @@ def render_page(
             y += line_height
 
     # --- derive per-character rendering behavior from the style profile ---
+    if not style_profile:
+        style_profile = {}
     slant_deg = style_profile.get("slant_deg", 0.0)
     slant_var = min(2.5, style_profile.get("stroke_width_var", 1.0)) * latent_modifiers["slant_var_mod"]
     baseline_jitter = min(3.5, style_profile.get("baseline_jitter", 1.5)) * latent_modifiers["jitter_mod"]
@@ -106,6 +109,13 @@ def render_page(
     lines = _wrap_text(text, max_chars_per_line)
 
     font = _load_font(font_key, base_font_size)
+
+    # Preload char images if using exact template
+    char_images = {}
+    if char_paths:
+        for ch, path in char_paths.items():
+            if os.path.exists(path):
+                char_images[ch] = Image.open(path).convert("RGBA")
 
     cursor_y = margin_y
     for line in lines:
@@ -122,31 +132,58 @@ def render_page(
             char_slant = slant_deg + rng.uniform(-1, 1) * slant_var * 0.3
 
             glyph_size = max(10, int(base_font_size * jitter_size))
-            glyph_font = _load_font(font_key, glyph_size) if glyph_size != base_font_size else font
-
-            bbox = draw.textbbox((0, 0), ch, font=glyph_font)
-            gw, gh = bbox[2] - bbox[0], bbox[3] - bbox[1]
-            if gw <= 0:
-                gw = int(base_font_size * 0.4)
-            if gh <= 0:
-                gh = base_font_size
-
             pad = 12
-            glyph_img = Image.new("RGBA", (gw + pad * 2, gh + pad * 2), (0, 0, 0, 0))
-            gdraw = ImageDraw.Draw(glyph_img)
-            gdraw.text((pad - bbox[0], pad - bbox[1]), ch, font=glyph_font, fill=ink_color + (255,))
 
-            if abs(char_slant) > 0.1:
+            if char_images and ch in char_images:
+                # EXACT TEMPLATE PATH
+                orig_img = char_images[ch]
+                # Scale it down so it roughly fits the base_font_size height
+                # Assuming the user wrote the character taking up most of a 150px box
+                scale = (base_font_size * 0.8) / float(max(orig_img.height, 1))
+                new_w = max(2, int(orig_img.width * scale))
+                new_h = max(2, int(orig_img.height * scale))
+                
+                # Apply ink color to the extracted alpha mask
+                colored_img = Image.new("RGBA", orig_img.size)
+                colored_draw = ImageDraw.Draw(colored_img)
+                colored_draw.rectangle([0, 0, orig_img.width, orig_img.height], fill=ink_color+(255,))
+                
+                # Use the original image's alpha channel as mask
+                final_char = Image.new("RGBA", orig_img.size, (0,0,0,0))
+                final_char.paste(colored_img, (0,0), mask=orig_img.split()[3])
+                
+                scaled = final_char.resize((new_w, new_h), Image.LANCZOS)
+                
+                glyph_img = Image.new("RGBA", (new_w + pad * 2, new_h + pad * 2), (0, 0, 0, 0))
+                glyph_img.paste(scaled, (pad, pad))
+                
+                gw, gh = new_w, new_h
+                # Baseline offset is roughly at the bottom for image crops
+                bbox_y_offset = gh
+            else:
+                # FALLBACK PROCEDURAL FONT PATH
+                glyph_font = _load_font(font_key, glyph_size) if glyph_size != base_font_size else font
+                bbox = draw.textbbox((0, 0), ch, font=glyph_font)
+                gw, gh = bbox[2] - bbox[0], bbox[3] - bbox[1]
+                if gw <= 0:
+                    gw = int(base_font_size * 0.4)
+                if gh <= 0:
+                    gh = base_font_size
+
+                glyph_img = Image.new("RGBA", (gw + pad * 2, gh + pad * 2), (0, 0, 0, 0))
+                gdraw = ImageDraw.Draw(glyph_img)
+                gdraw.text((pad - bbox[0], pad - bbox[1]), ch, font=glyph_font, fill=ink_color + (255,))
+                bbox_y_offset = bbox[1]
+
+            if abs(char_slant) > 0.1 and not char_images: # only slant generated fonts, not template
                 cx, cy = pad + gw / 2.0, pad + gh / 2.0
                 glyph_img = glyph_img.rotate(-char_slant, resample=Image.BICUBIC, center=(cx, cy))
 
-            # Baseline alignment: font baseline is at (pad - bbox[1]) in glyph_img coordinates.
-            # Paste top-left at (cursor_x - pad, cursor_y + jitter_y - (pad - bbox[1]))
             paste_x = int(cursor_x - pad)
-            paste_y = int(cursor_y + jitter_y - pad + bbox[1])
+            paste_y = int(cursor_y + jitter_y - pad + bbox_y_offset)
             page.paste(glyph_img, (paste_x, paste_y), glyph_img)
 
-            advance = glyph_font.getlength(ch) if hasattr(glyph_font, "getlength") else gw
+            advance = gw if char_images else (glyph_font.getlength(ch) if hasattr(glyph_font, "getlength") else gw)
             cursor_x += advance + letter_spacing_extra * latent_modifiers["flow_mod"]
 
         cursor_y += line_height

@@ -34,7 +34,7 @@ $$(".step-tab").forEach((tab) =>
     const n = Number(tab.dataset.step);
     // Only allow jumping to steps that are already unlocked.
     if (n === 1) return goToStep(1);
-    if (n === 2 && state.samples.length) return goToStep(2);
+    if (n === 2) return; // skip step 2 for template mode
     if (n === 3 && state.styleProfile) return goToStep(3);
     if (n === 4 && state.lastGeneration) return goToStep(4);
   })
@@ -57,24 +57,24 @@ dropzone.addEventListener("drop", (e) => {
   if (files.length) uploadSamples(files);
 });
 fileInput.addEventListener("change", () => {
-  if (fileInput.files.length) uploadSamples(fileInput.files);
+  if (fileInput.files.length) uploadSamples(fileInput.files[0]);
 });
 
-async function uploadSamples(fileList) {
+async function uploadSamples(file) {
   const form = new FormData();
-  Array.from(fileList).forEach((f) => form.append("samples", f));
+  form.append("template", file);
 
-  $("#uploadStatus").innerHTML = `<span class="spinner"></span> Preprocessing samples…`;
+  $("#uploadStatus").innerHTML = `<span class="spinner"></span> Processing template…`;
   try {
-    const res = await fetch("/api/upload", { method: "POST", body: form });
+    const res = await fetch("/api/template/upload", { method: "POST", body: form });
     const data = await res.json();
     if (!res.ok) throw new Error(data.error || "Upload failed");
 
-    state.samples.push(...data.samples);
-    renderSampleGrid();
-    $("#uploadStatus").textContent = `${data.total_samples} sample(s) ready.`;
-    $("#toStep2").disabled = state.samples.length === 0;
-    toast(`Added ${data.samples.length} sample(s).`);
+    // Mock style profile so step 3 allows generation
+    state.styleProfile = { recommended_font: "neat", slant_deg: 0 };
+    $("#uploadStatus").textContent = `Template processed! ${data.chars_extracted} characters extracted.`;
+    $("#toStep3Direct").disabled = false;
+    toast(`Template loaded successfully.`);
   } catch (err) {
     $("#uploadStatus").textContent = "";
     toast(err.message, true);
@@ -95,7 +95,7 @@ function renderSampleGrid() {
     .join("");
 }
 
-$("#toStep2").addEventListener("click", () => goToStep(2));
+$("#toStep3Direct")?.addEventListener("click", () => goToStep(3));
 
 /* ---------------- Step 2: style extraction ---------------- */
 

@@ -20,7 +20,7 @@
 <main class="wizard" id="wizard">
 
   <nav class="steps" id="stepNav">
-    <button class="step-tab active" data-step="1"><span class="num">01</span>Samples</button>
+    <button class="step-tab active" data-step="1"><span class="num">01</span>Template</button>
     <button class="step-tab" data-step="2"><span class="num">02</span>Style</button>
     <button class="step-tab" data-step="3"><span class="num">03</span>Compose</button>
     <button class="step-tab" data-step="4"><span class="num">04</span>Export</button>
@@ -28,15 +28,17 @@
 
   <!-- STEP 1: Upload -->
   <section class="panel active" id="panel-1">
-    <h2>Give it a hand to study</h2>
-    <p class="hint">Upload 2–5 clear photos or scans of handwriting — the same hand, the more the merrier. Plain paper, decent lighting, no need to crop perfectly.</p>
+    <h2>Provide your handwriting template</h2>
+    <p class="hint">To generate your EXACT handwriting, you need to use our standard template. <br><br>
+    <a href="/api/template/download" class="btn primary" download>1. Download & Print Template</a></p>
+    <br>
+    <p class="hint">2. Fill it out, take a clear photo (ensure the grid is visible and not heavily cropped), and upload it below:</p>
 
     <div class="dropzone" id="dropzone">
-      <input type="file" id="fileInput" accept="image/png,image/jpeg,image/bmp,image/webp" multiple hidden>
+      <input type="file" id="fileInput" accept="image/png,image/jpeg,image/bmp,image/webp" hidden>
       <div class="dropzone-inner">
         <div class="nib">✒</div>
-        <p><strong>Drop images here</strong> or click to browse</p>
-        <p class="muted">PNG, JPG, BMP, WEBP — up to 25MB total</p>
+        <p><strong>Drop filled template here</strong> or click to browse</p>
       </div>
     </div>
 
@@ -44,7 +46,7 @@
 
     <div class="actions">
       <span class="status" id="uploadStatus"></span>
-      <button class="btn primary" id="toStep2" disabled>Extract style →</button>
+      <button class="btn primary" id="toStep3Direct" disabled>Compose text →</button>
     </div>
   </section>
 

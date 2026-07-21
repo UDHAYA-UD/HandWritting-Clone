@@ -39,6 +39,7 @@ from utils.style_extraction import analyze_sample, aggregate_style_profile
 from models.style_autoencoder import train_style_encoder, latent_to_style_modifiers
 from models.handwriting_renderer import render_multi_page, FONT_CHOICES
 from utils.export import save_png, save_pdf
+from utils.font_generator import generate_template, process_template
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 UPLOAD_DIR = os.path.join(BASE_DIR, "uploads")
@@ -123,6 +124,46 @@ def api_upload():
     return jsonify({"samples": results, "total_samples": len(SESSION_STORE[sid]["samples"])})
 
 
+@app.route("/api/template/download")
+def download_template():
+    # generate the template image and send it to user
+    template_path = os.path.join(OUTPUT_DIR, "handwriting_template.png")
+    if not os.path.exists(template_path):
+        generate_template(template_path)
+    return send_from_directory(OUTPUT_DIR, "handwriting_template.png", as_attachment=True)
+
+
+@app.route("/api/template/upload", methods=["POST"])
+def upload_template():
+    sid = get_session_id()
+    f = request.files.get("template")
+    if not f or not allowed_file(f.filename):
+        return jsonify({"error": "Please upload a valid template image."}), 400
+
+    template_dir = os.path.join(UPLOAD_DIR, sid, "template")
+    os.makedirs(template_dir, exist_ok=True)
+    raw_path = os.path.join(template_dir, "template_raw." + f.filename.rsplit(".", 1)[1].lower())
+    f.save(raw_path)
+
+    try:
+        char_out_dir = os.path.join(template_dir, "chars")
+        char_paths = process_template(raw_path, char_out_dir)
+        SESSION_STORE[sid]["char_paths"] = char_paths
+        
+        # We also create a dummy style profile so the renderer doesn't crash 
+        # (we use exact chars but it still relies on profile for line spacing)
+        SESSION_STORE[sid]["style_profile"] = {
+            "slant_deg": 0.0,
+            "stroke_width_var": 1.0,
+            "baseline_jitter": 1.5,
+            "letter_spacing": 4.0,
+            "roughness": 0.3
+        }
+        
+        return jsonify({"success": True, "chars_extracted": len(char_paths)})
+    except Exception as e:
+        return jsonify({"error": str(e)}), 400
+
 @app.route("/api/extract-style", methods=["POST"])
 def api_extract_style():
     sid = get_session_id()
@@ -183,12 +224,13 @@ def api_generate():
     pages = render_multi_page(
         text,
         state["style_profile"],
-        state["latent_mods"],
+        state.get("latent_mods"),
         font_key=font_key,
         page_size=page_size,
         base_font_size=font_size,
         ink_color=ink_color,
         show_ruled_lines=ruled_lines,
+        char_paths=state.get("char_paths")
     )
 
     file_id = uuid.uuid4().hex[:12]
