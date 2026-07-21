@@ -42,31 +42,71 @@ def _stroke_width_stats(binary_ink: np.ndarray):
 
 
 def _baseline_jitter(stats, centroids, img_h):
-    """Std-dev of the vertical position (bottom edge) of each connected
-    component - a proxy for how much a person's writing wanders off the line."""
+    """Std-dev of intra-line vertical position wander."""
     if len(stats) < 2:
         return 2.0
-    bottoms = stats[:, 1] + stats[:, 3]  # y + height
-    return float(np.clip(np.std(bottoms), 0.5, img_h * 0.15))
+    bottoms = stats[:, 1] + stats[:, 3]
+    heights = stats[:, 3]
+    avg_h = float(np.median(heights)) if len(heights) > 0 else 20.0
+
+    # Cluster components into lines by Y proximity
+    sorted_idx = np.argsort(bottoms)
+    sorted_bottoms = bottoms[sorted_idx]
+
+    lines = []
+    current_line = [sorted_bottoms[0]]
+    for b in sorted_bottoms[1:]:
+        if abs(b - np.mean(current_line)) < max(15.0, avg_h * 0.8):
+            current_line.append(b)
+        else:
+            lines.append(current_line)
+            current_line = [b]
+    lines.append(current_line)
+
+    jitters = [np.std(l) for l in lines if len(l) > 1]
+    if not jitters:
+        return 2.0
+    return float(np.clip(np.mean(jitters), 0.5, 4.0))
 
 
 def _letter_spacing(stats):
-    """Average horizontal gap between neighboring connected components on
-    (roughly) the same text line."""
+    """Average horizontal gap between neighboring connected components on the same line."""
     if len(stats) < 2:
-        return 6.0
-    # sort left-to-right
-    ordered = stats[np.argsort(stats[:, 0])]
+        return 4.0
+    # Group components by approximate Y line position first
+    bottoms = stats[:, 1] + stats[:, 3]
+    heights = stats[:, 3]
+    avg_h = float(np.median(heights)) if len(heights) > 0 else 20.0
+
+    sorted_idx = np.argsort(bottoms)
+    lines_components = []
+    current_line = [sorted_idx[0]]
+    for idx in sorted_idx[1:]:
+        b = bottoms[idx]
+        current_b_mean = np.mean([bottoms[i] for i in current_line])
+        if abs(b - current_b_mean) < max(15.0, avg_h * 0.8):
+            current_line.append(idx)
+        else:
+            lines_components.append(current_line)
+            current_line = [idx]
+    lines_components.append(current_line)
+
     gaps = []
-    for i in range(1, len(ordered)):
-        prev_right = ordered[i - 1][0] + ordered[i - 1][2]
-        cur_left = ordered[i][0]
-        gap = cur_left - prev_right
-        if 0 <= gap < 60:  # ignore huge gaps = new line / word boundary outliers
-            gaps.append(gap)
+    for line_idx in lines_components:
+        if len(line_idx) < 2:
+            continue
+        line_stats = stats[line_idx]
+        ordered = line_stats[np.argsort(line_stats[:, 0])]
+        for i in range(1, len(ordered)):
+            prev_right = ordered[i - 1][0] + ordered[i - 1][2]
+            cur_left = ordered[i][0]
+            gap = cur_left - prev_right
+            if 0 <= gap < 40:
+                gaps.append(gap)
     if not gaps:
-        return 6.0
-    return float(np.clip(np.mean(gaps), 1.0, 40.0))
+        return 4.0
+    return float(np.clip(np.mean(gaps), 1.0, 15.0))
+
 
 
 def _roughness(binary_ink: np.ndarray):

@@ -96,31 +96,30 @@ def render_page(
 
     # --- derive per-character rendering behavior from the style profile ---
     slant_deg = style_profile.get("slant_deg", 0.0)
-    slant_var = style_profile.get("stroke_width_var", 1.0) * latent_modifiers["slant_var_mod"]
-    baseline_jitter = style_profile.get("baseline_jitter", 2.0) * latent_modifiers["jitter_mod"]
-    letter_spacing_extra = style_profile.get("letter_spacing", 6.0) * 0.35
+    slant_var = min(2.5, style_profile.get("stroke_width_var", 1.0)) * latent_modifiers["slant_var_mod"]
+    baseline_jitter = min(3.5, style_profile.get("baseline_jitter", 1.5)) * latent_modifiers["jitter_mod"]
+    letter_spacing_extra = min(10.0, style_profile.get("letter_spacing", 4.0)) * 0.15
     roughness = style_profile.get("roughness", 0.3)
-    size_jitter = 1.0 + min(roughness, 0.6) * latent_modifiers["stroke_var_mod"]
+    size_jitter = min(roughness, 0.3) * latent_modifiers["stroke_var_mod"]
 
-    max_chars_per_line = int((W - 2 * margin_x) / (base_font_size * 0.62))
+    max_chars_per_line = int((W - 2 * margin_x) / (base_font_size * 0.55))
     lines = _wrap_text(text, max_chars_per_line)
 
     font = _load_font(font_key, base_font_size)
 
-    cursor_y = margin_y - line_height + 20
+    cursor_y = margin_y
     for line in lines:
-        cursor_y += line_height
-        if cursor_y > H - margin_y:
+        if cursor_y + line_height > H - margin_y:
             break  # single-page render; caller can paginate for longer text
         cursor_x = margin_x
         for ch in line:
             if ch == " ":
-                cursor_x += base_font_size * 0.45 * latent_modifiers["flow_mod"]
+                cursor_x += base_font_size * 0.35 * latent_modifiers["flow_mod"]
                 continue
 
             jitter_y = rng.uniform(-1, 1) * baseline_jitter
-            jitter_size = 1.0 + rng.uniform(-0.08, 0.08) * size_jitter
-            char_slant = slant_deg + rng.uniform(-1, 1) * slant_var * 0.6
+            jitter_size = 1.0 + rng.uniform(-0.03, 0.03) * size_jitter
+            char_slant = slant_deg + rng.uniform(-1, 1) * slant_var * 0.3
 
             glyph_size = max(10, int(base_font_size * jitter_size))
             glyph_font = _load_font(font_key, glyph_size) if glyph_size != base_font_size else font
@@ -128,24 +127,32 @@ def render_page(
             bbox = draw.textbbox((0, 0), ch, font=glyph_font)
             gw, gh = bbox[2] - bbox[0], bbox[3] - bbox[1]
             if gw <= 0:
-                gw = int(base_font_size * 0.5)
+                gw = int(base_font_size * 0.4)
             if gh <= 0:
                 gh = base_font_size
 
-            pad = 6
+            pad = 12
             glyph_img = Image.new("RGBA", (gw + pad * 2, gh + pad * 2), (0, 0, 0, 0))
             gdraw = ImageDraw.Draw(glyph_img)
-            gdraw.text((pad - bbox[0], pad - bbox[1]), ch, font=glyph_font,
-                       fill=ink_color + (255,))
-            if abs(char_slant) > 0.1:
-                glyph_img = glyph_img.rotate(char_slant, resample=Image.BICUBIC,
-                                              expand=True)
+            gdraw.text((pad - bbox[0], pad - bbox[1]), ch, font=glyph_font, fill=ink_color + (255,))
 
-            paste_y = int(cursor_y - gh + jitter_y)
-            page.paste(glyph_img, (int(cursor_x - pad), paste_y), glyph_img)
-            cursor_x += gw * 0.72 + letter_spacing_extra * latent_modifiers["flow_mod"]
+            if abs(char_slant) > 0.1:
+                cx, cy = pad + gw / 2.0, pad + gh / 2.0
+                glyph_img = glyph_img.rotate(-char_slant, resample=Image.BICUBIC, center=(cx, cy))
+
+            # Baseline alignment: font baseline is at (pad - bbox[1]) in glyph_img coordinates.
+            # Paste top-left at (cursor_x - pad, cursor_y + jitter_y - (pad - bbox[1]))
+            paste_x = int(cursor_x - pad)
+            paste_y = int(cursor_y + jitter_y - pad + bbox[1])
+            page.paste(glyph_img, (paste_x, paste_y), glyph_img)
+
+            advance = glyph_font.getlength(ch) if hasattr(glyph_font, "getlength") else gw
+            cursor_x += advance + letter_spacing_extra * latent_modifiers["flow_mod"]
+
+        cursor_y += line_height
 
     return page
+
 
 
 def render_multi_page(text: str, style_profile: dict, latent_modifiers: dict = None,

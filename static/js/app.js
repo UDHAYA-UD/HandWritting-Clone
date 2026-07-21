@@ -119,6 +119,8 @@ $("#runExtract").addEventListener("click", async () => {
   }
 });
 
+$("#toStep3").addEventListener("click", () => goToStep(3));
+
 function renderStyleMetrics(profile, latent) {
   const cards = [
     ["Slant", `${profile.slant_deg.toFixed(1)}°`],
