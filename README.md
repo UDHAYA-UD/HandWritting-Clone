@@ -199,3 +199,12 @@ service. Before deploying it beyond localhost:
 - Multiple saved handwriting profiles per user
 - Cloud deployment
 - Fine-tuning support once wired to a real neural backend
+
+---
+
+## 👤 Author & Connect
+
+**Tarun P** — Machine Learning & Full Stack Developer
+- 🌐 Portfolio: [tarun-ml.vercel.app](https://tarun-ml.vercel.app/)
+- 🐙 GitHub: [@tarun05-design](https://github.com/tarun05-design)
+- 📧 Email: [tarunparthasarathy65@gmail.com](mailto:tarunparthasarathy65@gmail.com)
